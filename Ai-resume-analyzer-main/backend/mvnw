@@ -1,0 +1,51 @@
+#!/bin/sh
+# ----------------------------------------------------------------------------
+# Apache Maven Wrapper startup script (only-script distribution type).
+# Downloads Apache Maven on first use, then delegates to it.
+# Based on the official org.apache.maven:maven-wrapper 3.3.2 script.
+# ----------------------------------------------------------------------------
+set -euf
+
+# Resolve script directory
+script_dir=$(dirname "$0")
+script_dir=$(cd "$script_dir" && pwd)
+
+wrapper_props="$script_dir/.mvn/wrapper/maven-wrapper.properties"
+
+if [ ! -f "$wrapper_props" ]; then
+  echo "Cannot find $wrapper_props" >&2
+  exit 1
+fi
+
+# Read distributionUrl
+distributionUrl=$(grep '^distributionUrl=' "$wrapper_props" | cut -d'=' -f2-)
+if [ -z "${distributionUrl:-}" ]; then
+  echo "distributionUrl not set in maven-wrapper.properties" >&2
+  exit 1
+fi
+
+distributionName=$(basename "$distributionUrl" | sed 's/-bin\.zip$//; s/\.zip$//')
+MAVEN_HOME_BASE="${MAVEN_USER_HOME:-$HOME/.m2}/wrapper/dists"
+MAVEN_HOME="$MAVEN_HOME_BASE/$distributionName"
+
+if [ ! -d "$MAVEN_HOME/bin" ]; then
+  echo "Downloading Apache Maven from $distributionUrl ..."
+  mkdir -p "$MAVEN_HOME_BASE"
+  tmp_zip="$MAVEN_HOME_BASE/$distributionName.zip"
+  if command -v curl >/dev/null 2>&1; then
+    curl -fsSL -o "$tmp_zip" "$distributionUrl"
+  elif command -v wget >/dev/null 2>&1; then
+    wget -q -O "$tmp_zip" "$distributionUrl"
+  else
+    echo "Neither curl nor wget is available to download Maven." >&2
+    exit 1
+  fi
+  ( cd "$MAVEN_HOME_BASE" && unzip -q "$tmp_zip" )
+  extracted=$(cd "$MAVEN_HOME_BASE" && ls -d apache-maven-*/ 2>/dev/null | head -1)
+  if [ -n "$extracted" ] && [ "$MAVEN_HOME_BASE/${extracted%/}" != "$MAVEN_HOME" ]; then
+    mv "$MAVEN_HOME_BASE/${extracted%/}" "$MAVEN_HOME"
+  fi
+  rm -f "$tmp_zip"
+fi
+
+exec "$MAVEN_HOME/bin/mvn" "$@"
